@@ -49,12 +49,12 @@ const resolvers = {
       );
     },
 
-    removeBooks: async (parent, {bookId}, context) => {
+    removeBooks: async (parent, { bookId }, context) => {
       return User.findByIdAndUpdate(
-        {_id: context.user._id},
-        {$pull: { savedBooks: bookId }},
+        { _id: context.user._id },
+        { $pull: { savedBooks: bookId } },
         { new: true }
-        )
+      );
     },
   },
 };
