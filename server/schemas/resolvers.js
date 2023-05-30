@@ -1,4 +1,5 @@
 const { AuthenticationError } = require('apollo-server-express');
+const { signToken } = require('../utils/auth');
 const { User } = require('../models');
 
 const resolvers = {
@@ -7,16 +8,23 @@ const resolvers = {
       if (context.user) {
         return User.findOne({ _id: context.user._id }).populate('savedBooks');
       }
-      throw new AuthenticationError('Login Required!');
+      throw new AuthenticationError('You need to be logged in!');
     },
   },
   Mutation: {
     login: async (parent, { email, password }) => {
       const user = await User.findOne({ email });
-      const correctPW = await user.isCorrectPassword(password);
-      if (!user || !correctPW) {
-        throw new AuthenticationError('Invalid Credentials');
+
+      if (!user) {
+        throw new AuthenticationError('No user found with this email address');
       }
+
+      const correctPw = await user.isCorrectPassword(password);
+
+      if (!correctPw) {
+        throw new AuthenticationError('Incorrect credentials');
+      }
+
       const token = signToken(user);
 
       return { token, user };
@@ -28,28 +36,29 @@ const resolvers = {
       return { token, user };
     },
 
-    saveBook: async (parent, { input }, context) => {
-      const { author, description, title, bookId, image, link } = input;
-
-      return User.findByIdAndUpdate(
+    saveBook: async (
+      parent,
+      { bookId, authors, description, image, link, title },
+      context
+    ) => {
+      return User.findOneAndUpdate(
         { _id: context.user._id },
         {
-          $push: {
-            books: {
-              author,
-              description,
-              title,
+          $addToSet: {
+            savedBooks: {
               bookId,
+              authors,
+              description,
               image,
               link,
+              title,
             },
           },
-        },
-        { new: true }
+        }
       );
     },
 
-    removeBooks: async (parent, { bookId }, context) => {
+    removeBook: async (parent, { bookId }, context) => {
       return User.findByIdAndUpdate(
         { _id: context.user._id },
         { $pull: { savedBooks: bookId } },
